@@ -24,6 +24,11 @@ def build_for_iosish_platform(sandbox, build_dir, target, device, simulator, con
     puts lipo_log unless File.exist?(executable_path)
 
     FileUtils.mv executable_path, device_lib, :force => true
+    # modify static framework bundle issue
+    device_lib_bundle_in = "#{build_dir}/#{configuration}-#{device}/#{root_name}/#{module_name}.framework/#{module_name}.bundle"
+    device_lib_bundle_out = "#{build_dir}/#{configuration}-#{device}/#{root_name}/#{module_name}.bundle"
+    FileUtils.mv device_lib_bundle_out, device_framework_lib, :force => true unless File.exist?(device_lib_bundle_in)
+    
     FileUtils.mv device_framework_lib, build_dir, :force => true
     FileUtils.rm simulator_lib if File.file?(simulator_lib)
     FileUtils.rm device_lib if File.file?(device_lib)
@@ -92,8 +97,9 @@ Pod::HooksManager.register('cocoapods-rome', :post_install) do |installer_contex
 
   # Make sure the device target overwrites anything in the simulator build, otherwise iTunesConnect
   # can get upset about Info.plist containing references to the simulator SDK
-  frameworks = Pathname.glob("build/*/*/*.framework").reject { |f| f.to_s =~ /Pods[^.]+\.framework/ }
-  frameworks += Pathname.glob("build/*.framework").reject { |f| f.to_s =~ /Pods[^.]+\.framework/ }
+  # frameworks = Pathname.glob("build/*/*/*.framework").reject { |f| f.to_s =~ /Pods[^.]+\.framework/ }
+  # frameworks += Pathname.glob("build/*.framework").reject { |f| f.to_s =~ /Pods[^.]+\.framework/ }
+  frameworks = Pathname.glob("build/*.framework").reject { |f| f.to_s =~ /Pods[^.]+\.framework/ }
 
   resources = []
 
@@ -101,15 +107,15 @@ Pod::HooksManager.register('cocoapods-rome', :post_install) do |installer_contex
 
   destination.rmtree if destination.directory?
 
-  installer_context.umbrella_targets.each do |umbrella|
-    umbrella.specs.each do |spec|
-      consumer = spec.consumer(umbrella.platform_name)
-      file_accessor = Pod::Sandbox::FileAccessor.new(sandbox.pod_dir(spec.root.name), consumer)
-      frameworks += file_accessor.vendored_libraries
-      frameworks += file_accessor.vendored_frameworks
-      resources += file_accessor.resources
-    end
-  end
+  # installer_context.umbrella_targets.each do |umbrella|
+  #   umbrella.specs.each do |spec|
+  #     consumer = spec.consumer(umbrella.platform_name)
+  #     file_accessor = Pod::Sandbox::FileAccessor.new(sandbox.pod_dir(spec.root.name), consumer)
+  #     frameworks += file_accessor.vendored_libraries
+  #     frameworks += file_accessor.vendored_frameworks
+  #     resources += file_accessor.resources
+  #   end
+  # end
   frameworks.uniq!
   resources.uniq!
 
